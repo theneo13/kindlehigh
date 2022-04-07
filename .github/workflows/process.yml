@@ -1,0 +1,41 @@
+name: Process changes to the "My Clippings.txt" file
+
+on:
+  push:
+    branches:
+      - master
+
+# using filthy hacks by copying files from other branches (by name) and then deleting them again
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - name: Update json stored annotations in the store branch
+        run: |
+          git fetch
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git checkout store
+          git checkout master -- process.py "My Clippings.txt"
+          python process.py
+          git rm -rf -- process.py "My Clippings.txt"
+          rm -rf process.py "My Clippings.txt"
+          git add -A
+          git diff-index --quiet HEAD || git commit -m 'update store' # otherwise error if there is nothing to commit
+          git push origin store
+      - name: Merge notes into notes branch
+        run: |
+          git checkout notes
+          git merge --no-ff -s recursive -X subtree=output store
+          git push origin notes
+      # - name: Push changes
+      #   uses: ad-m/github-push-action@master
+      #   with:
+      #     github_token: ${{secrets.GITHUB_TOKEN}}
+      #     branch: notes

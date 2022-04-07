@@ -1,0 +1,102 @@
+= Backup and extract kindle clippings to GitHub using GitHub Actions
+:toc:
+
+Backup and extract your kindle notes in a semi-automatic fashion using GitHub actions.
+
+== Description
+
+Amazon kindles store all highlightings - both from ebooks purchased with Amazon and documents transferred to the kindle in other ways - in the file `/documents/My Clippings.txt`.
+
+Each marking consists of four lines, for example:
+
+[source]
+----
+==========
+The Tao Te Ching (Lao Tzu)
+- Ihre Markierung bei Position 22-23 | Hinzugefügt am Donnerstag, 14. Juni 2018 23:06:53 <1>
+
+Practice not-doing, and everything will fall into place.
+========== <2>
+----
+<1> Here the kindle is set to German so the position and timestamp line is also in German; but during parsing the information from this line isn't extracted anyways so it should work for every language.
+<2> Annotation entries are separated by bars consisting of 10 `=`.
+
+This repository presents a semi-automatic tool which backups the `My Clippings.txt` file, extracts the annotations and merges them with the previous one (if the `My Clippings.txt` is reset no quotes are lost). In the last step the annotations are formatted with Markdown and separated by book and pushed to a human-friendly branch for reading.
+
+Implemented using GitHub actions and a simple Python script.
+
+This is only semi-automatic as I know of no simple way to extract the `My Clippings.txt` from the kindle device autonomously.
+To use this tool, the user has to extract the `My Clippings.txt` from the kindle by plugging it into a computer and then upload it to a repository with the scripts presented here.
+
+Pushing something to the `master` branch (if you use this as intended, this would be a new version of the `My Clippings.txt`) triggers the following GitHub actions:
+
+- separate notes from different books using a script (don't know which one yet) in a temporary branch
+- merge this temporary branch with the files in the `notes` branch
+
+The `notes` branch is the end result - here you can read, edit and delete the annotations.
+If your `My Clippings.txt` is reset, all new notes will be appended to the existing notes, nothing will be lost.
+
+This tool uses three branches:
+
+- `master`: contains the scripts and is the place where the user inputs his `My Clippings.txt`
+- `store`: Keeps a backup of all quotes, in case the `My Clippings.txt` is truncated.
+- `notes`: This is the place where the nicely formatted Markdown files with the annotations are sent to - the 'output' for the user
+
+These branch names are used in the GitHub workflow file.
+If you want to use other branch names, you need to adjust them there.
+
+== Setup
+
+This section describes how to set up this tool.
+
+=== 1. Clone or copy files
+First you need to copy the relevant files.
+There are two ways to do this, by copying the relevant files manually or by using the GitHub template (recommended).
+- *Using the template*: Press "Use this template", enter a name and tick the checkbox `Include all branches`. To get all branches from the master run `git fetch --all`.
+- *Copying the files*: Create a new repository and copy all the files from the `master` branch into the new repositories `master` branch.
+
+=== 2. Set up the branches
+To work, the remote GitHub repository needs to have a `master` branch with the script files as well as empty and related `store` and `notes` branches.
+Check which branches your new repository has with `git branch`.
+
+If you are missing the `store` and `notes` branches, you can create them with the following commands:
+
+[source,bash]
+----
+git checkout --orphan notes
+# delete and unstage all files in the directory, e.g. with:
+git rm -rf .
+rm .gitignore
+git commit --allow-empty -m "init notes branch"
+git push origin notes
+git checkout -b store
+git commit --allow-empty -m "init store branch"
+git push origin store
+git checkout master
+----
+
+If you, for whatever reason, want to start fresh you can always reset everything by removing the `store` and `notes` branches (e.g. with `git push origin --delete notes` and `git branch -D notes`).
+
+=== 3. Paste in your `My Clippings.txt` file from the kindle
+Connect your kindle to your computer.
+Open the `/documents` directory on the kindle.
+Overwrite the `My Clippings.txt` file in the `master` branch with the `My Clippings.txt` file from `/documents`, commit the change and push it to GitHub.
+
+=== 4. Update
+If there are changes in this template repository and you would like to update your instance, you do this by either updating the files in the `master` branch with the ones from this repository (except `My Clippings.txt`).
+
+If you used the "Use this template" method to create your clone, follow the instructions here: https://stackoverflow.com/questions/56577184/github-pull-changes-from-a-template-repository
+
+== How to use
+- Set up the repository as described above
+- After that, iteratively:
+** Upload your current version of `My Clippings.txt` from your kindle to the `master` branch (replace the previous version) and commit it
+** The GitHub action is then triggered and merges new annotations to the `notes` branch
+** Switch to the `notes` branch and review your annotations
+
+== Support
+If you find any bugs, please submit an issue here.
+Also if you find a simple way to automatically export `My Clippings.txt` from kindle devices, please submit an issue so I may implement it.
+If you like this tool, consider leaving a star.
+
+If you want to change the output (i.e. use a different kind of markup), the easiest way would be to clone this repository and edit `process.py`.
